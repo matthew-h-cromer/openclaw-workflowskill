@@ -1,0 +1,12 @@
+{
+  "id": "workflowskill",
+  "name": "WorkflowSkill",
+  "description": "Author, validate, run, and review WorkflowSkill YAML workflows",
+  "version": "0.1.0",
+  "skills": ["skills/workflowskill-author"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

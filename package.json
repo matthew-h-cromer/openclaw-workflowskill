@@ -1,0 +1,23 @@
+{
+  "name": "openclaw-workflowskill",
+  "version": "0.1.0",
+  "description": "WorkflowSkill plugin for OpenClaw — author, validate, run, and review YAML workflows",
+  "type": "module",
+  "main": "index.ts",
+  "keywords": ["openclaw", "workflowskill", "workflow", "automation"],
+  "license": "MIT",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "peerDependencies": {
+    "workflowskill": ">=0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  }
+}
