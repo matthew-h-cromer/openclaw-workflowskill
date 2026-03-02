@@ -116,9 +116,10 @@ export default {
     registerTool({
       name: 'workflowskill_run',
       description:
-        'Execute a WorkflowSkill workflow and return the full RunLog JSON. ' +
+        'Execute a WorkflowSkill workflow and return a compact run summary. ' +
         'Accepts a skill_name (resolved from skills directories) or inline content. ' +
-        'RunLog is persisted to workflow-runs/ automatically.',
+        'The full RunLog is persisted to workflow-runs/ automatically. ' +
+        'Use workflowskill_runs with run_id to retrieve full step-level detail.',
       parameters: {
         type: 'object',
         properties: {
