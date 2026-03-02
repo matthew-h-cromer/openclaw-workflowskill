@@ -1,7 +1,7 @@
 // adapters.ts — bridge adapters for the OpenClaw plugin.
 //
-// Tool steps use DevToolAdapter (ships with workflowskill, handles http.request,
-// html.select, etc.) since the host OpenClaw agent may not implement invokeTool.
+// Tool steps use DevToolAdapter (ships with workflowskill) since the host
+// OpenClaw agent may not implement invokeTool.
 // LLM steps use AnthropicLLMAdapter with the API key read directly from
 // OpenClaw's credential store at ~/.openclaw/agents/main/agent/auth-profiles.json.
 
@@ -99,12 +99,12 @@ function readAnthropicApiKey(): string {
 /**
  * Create bridge adapters backed by the host OpenClaw agent.
  *
- * Tool steps are handled by DevToolAdapter (native http.request, html.select, etc.)
+ * Tool steps are handled by DevToolAdapter (built-in tools from the workflowskill runtime)
  * since host OpenClaw versions may not implement api.invokeTool.
  * LLM steps use AnthropicLLMAdapter with the key read from OpenClaw's credential store.
  */
 export async function createBridgeAdapters(api: BridgeApi): Promise<AdapterSet> {
-  // DevToolAdapter handles http.request, html.select, gmail.*, sheets.* natively.
+  // DevToolAdapter handles built-in tools from the workflowskill runtime.
   // Falls back to BridgeToolAdapter for host-registered tools not in the dev set.
   const devAdapter = await DevToolAdapter.create({});
   const bridgeTool = new BridgeToolAdapter(api);
