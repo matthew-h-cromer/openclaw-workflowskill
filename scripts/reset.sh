@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve the plugin repo root from the script's own location (works regardless of cwd)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 # Colors
 BOLD='\033[1m'
 GREEN='\033[0;32m'
@@ -81,50 +77,29 @@ ok "Removed update-check cache"
 rm -rf "$OPENCLAW_DIR/canvas"
 ok "Removed canvas"
 
+# Extensions (remove all installed plugins so there are no stale references)
+rm -rf "$OPENCLAW_DIR/extensions"
+ok "Removed extensions directory"
+
+# Remove stale plugins.load.paths from config so the gateway doesn't try to
+# load leftover dev symlinks or old npm installs
+if [ -f "$OPENCLAW_DIR/openclaw.json" ]; then
+  # Use node to strip the key in-place (available anywhere Node is installed)
+  node -e "
+    const fs = require('fs');
+    const path = '$OPENCLAW_DIR/openclaw.json';
+    const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+    if (cfg.plugins) delete cfg.plugins['load.paths'];
+    fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  " 2>/dev/null || true
+  ok "Cleared plugins.load.paths from openclaw.json"
+fi
+
 echo -e "${YELLOW}    (Kept: openclaw.json, auth-profiles.json, identity/, devices/, completions/)${RESET}"
+echo -e "${YELLOW}    Install the plugin fresh: openclaw plugins install openclaw-workflowskill${RESET}"
 
 # ---------------------------------------------------------------------------
-# 3. Fix extensions symlink
-# ---------------------------------------------------------------------------
-step "Fixing extensions symlink"
-
-EXTENSIONS_DIR="$OPENCLAW_DIR/extensions"
-SYMLINK_PATH="$EXTENSIONS_DIR/workflowskill-plugin"
-
-mkdir -p "$EXTENSIONS_DIR"
-
-# Remove stale symlink or directory if present
-if [ -L "$SYMLINK_PATH" ] || [ -d "$SYMLINK_PATH" ]; then
-  rm -rf "$SYMLINK_PATH"
-fi
-
-ln -s "$PLUGIN_ROOT" "$SYMLINK_PATH"
-ok "Symlink: $SYMLINK_PATH -> $PLUGIN_ROOT"
-
-# ---------------------------------------------------------------------------
-# 4. Rebuild runtime
-# ---------------------------------------------------------------------------
-step "Rebuilding workflowskill runtime"
-
-RUNTIME_DIR="$(cd "$PLUGIN_ROOT/../workflowskill/runtime" && pwd)"
-
-if [ ! -d "$RUNTIME_DIR" ]; then
-  echo "ERROR: Runtime directory not found at $RUNTIME_DIR" >&2
-  exit 1
-fi
-
-(cd "$RUNTIME_DIR" && npm run build)
-ok "Runtime built: $RUNTIME_DIR"
-
-# ---------------------------------------------------------------------------
-# 5. Reinstall plugin deps
-# ---------------------------------------------------------------------------
-step "Reinstalling plugin dependencies"
-(cd "$PLUGIN_ROOT" && npm install)
-ok "Dependencies installed"
-
-# ---------------------------------------------------------------------------
-# 6. Start gateway (foreground — Ctrl+C to stop)
+# 3. Start gateway (foreground — Ctrl+C to stop)
 # ---------------------------------------------------------------------------
 echo -e "\n${CYAN}${BOLD}==> Starting OpenClaw gateway  ${YELLOW}(Ctrl+C to stop)${RESET}\n"
 exec openclaw gateway

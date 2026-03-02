@@ -8,7 +8,20 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { LLMAdapter, ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
-import { AnthropicLLMAdapter } from 'workflowskill';
+import { AnthropicLLMAdapter, DevToolAdapter } from 'workflowskill';
+
+// Tools served locally by DevToolAdapter (html.select, http.request, etc.)
+// These bypass the gateway and run in-process.
+const DEV_TOOL_NAMES = new Set(['html.select', 'http.request']);
+
+// Lazy singleton — DevToolAdapter.create() is async so we initialize on first use.
+let _devToolsPromise: Promise<DevToolAdapter> | null = null;
+function getDevTools(): Promise<DevToolAdapter> {
+  if (!_devToolsPromise) {
+    _devToolsPromise = DevToolAdapter.create({});
+  }
+  return _devToolsPromise;
+}
 
 export interface GatewayConfig {
   baseUrl: string;
@@ -153,6 +166,7 @@ export function createAdapters(gatewayConfig: GatewayConfig): AdapterSet {
   const toolAdapter: ToolAdapter = {
     has(toolName: string): boolean {
       if (toolName === LLM_COMPLETE) return true;
+      if (DEV_TOOL_NAMES.has(toolName)) return true;
       return hostTools.has(toolName);
     },
     async invoke(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
@@ -162,6 +176,10 @@ export function createAdapters(gatewayConfig: GatewayConfig): AdapterSet {
           args.prompt as string,
         );
         return { output: { text: result.text } };
+      }
+      if (DEV_TOOL_NAMES.has(toolName)) {
+        const devTools = await getDevTools();
+        return devTools.invoke(toolName, args);
       }
       return hostTools.invoke(toolName, args);
     },
