@@ -3,6 +3,9 @@
 // Entry point called by OpenClaw when the plugin is loaded.
 // Default-exports an object with id + register(api) per the OpenClaw plugin API.
 
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { AUTHORING_SKILL } from 'workflowskill';
 import { validateHandler } from './tools/validate.js';
 import { runHandler } from './tools/run.js';
 import { runsHandler } from './tools/runs.js';
@@ -70,6 +73,12 @@ export default {
   id: 'workflowskill',
 
   register(api: PluginApi): void {
+    // Write the canonical authoring skill from the workflowskill package so
+    // resolveSkillContent() finds it at the expected plugin-bundled path.
+    const skillDir = join(import.meta.dirname, 'skills', 'workflowskill-author');
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(join(skillDir, 'SKILL.md'), AUTHORING_SKILL, 'utf-8');
+
     const workspace = api?.config?.agents?.defaults?.workspace;
     if (typeof workspace !== 'string' || workspace.length === 0) {
       throw new Error(
