@@ -86,7 +86,9 @@ export default {
       );
     }
 
-    const adapters = createBridgeAdapters(api);
+    // createBridgeAdapters is async (DevToolAdapter.create initialises tool registrations).
+    // Lazy-initialise: create the promise once, await it inside each execute handler.
+    const adaptersPromise = createBridgeAdapters(api);
     const { registerTool } = api;
 
     // ── workflowskill_validate ────────────────────────────────────────────
@@ -107,6 +109,7 @@ export default {
         required: ['content'],
       },
       execute: async (_id, params) => {
+        const adapters = await adaptersPromise;
         return toContent(await validateHandler(params as { content: string }, adapters.toolAdapter));
       },
     });
@@ -136,6 +139,7 @@ export default {
         },
       },
       execute: async (_id, params) => {
+        const adapters = await adaptersPromise;
         return toContent(
           await runHandler(
             params as { workflow_name?: string; content?: string; inputs?: Record<string, unknown> },
@@ -181,6 +185,39 @@ export default {
             workspace,
           ),
         );
+      },
+    });
+
+    // ── llm.complete ──────────────────────────────────────────────────────────
+    registerTool({
+      name: 'llm.complete',
+      description:
+        'Call the host LLM and return its text response. ' +
+        'Routes through OpenClaw credentials — no separate API key required. ' +
+        'Use in workflow tool steps when you need LLM reasoning inline. ' +
+        'model is optional (haiku / sonnet / opus or full model ID); omit for the default.',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: {
+            type: 'string',
+            description: 'The prompt to send to the LLM.',
+          },
+          model: {
+            type: 'string',
+            description: 'Model alias or ID. Optional — omit to use the openclaw default.',
+          },
+        },
+        required: ['prompt'],
+      },
+      execute: async (_id, params) => {
+        const { prompt, model } = params as { prompt: string; model?: string };
+        const response = await api.completion({ model, prompt });
+        const text = response.content
+          .filter((b) => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+        return toContent({ text });
       },
     });
   },
