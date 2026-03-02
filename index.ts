@@ -188,9 +188,9 @@ export default {
       },
     });
 
-    // ── llm.complete ──────────────────────────────────────────────────────────
+    // ── llm ───────────────────────────────────────────────────────────────────
     registerTool({
-      name: 'llm.complete',
+      name: 'llm',
       description:
         'Call the host LLM and return its text response. ' +
         'Routes through OpenClaw credentials — no separate API key required. ' +

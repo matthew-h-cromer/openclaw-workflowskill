@@ -97,7 +97,7 @@ export async function createBridgeAdapters(api: BridgeApi): Promise<AdapterSet> 
 
   const llmAdapter = new BridgeLLMAdapter(api);
 
-  const LLM_COMPLETE = 'llm.complete';
+  const LLM_COMPLETE = 'llm';
   const LLM_COMPLETE_DESCRIPTOR: ToolDescriptor = {
     name: LLM_COMPLETE,
     description: 'Call the host LLM with a prompt; returns { text }.',
