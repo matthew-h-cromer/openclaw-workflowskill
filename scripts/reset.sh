@@ -58,15 +58,16 @@ ok "Removed memory DB"
 rm -rf "$OPENCLAW_DIR/logs"
 ok "Removed logs"
 
-# Workspace personality / state / runs
+# Workspace personality / state / runs / skills
 rm -rf "$OPENCLAW_DIR/workspace/personality" \
        "$OPENCLAW_DIR/workspace/state" \
-       "$OPENCLAW_DIR/workspace/runs"
-ok "Removed workspace personality, state, runs"
+       "$OPENCLAW_DIR/workspace/workflow-runs" \
+       "$OPENCLAW_DIR/workspace/skills"
+ok "Removed workspace personality, state, workflow-runs, skills"
 
 # Cron
-rm -f "$OPENCLAW_DIR/cron.json"
-ok "Removed cron.json"
+rm -rf "$OPENCLAW_DIR/cron"
+ok "Removed cron directory"
 
 # Config backups
 rm -f "$OPENCLAW_DIR"/*.bak "$OPENCLAW_DIR"/*.backup
