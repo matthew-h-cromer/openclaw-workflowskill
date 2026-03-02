@@ -1,15 +1,15 @@
 // adapters.ts — bridge adapters for the OpenClaw plugin.
 //
-// Delegates tool invocation and LLM calls to the host OpenClaw agent
-// via PluginApi bridge methods. The host tracks usage and credentials;
-// the plugin does not make direct API calls.
-//
 // Tool steps use DevToolAdapter (ships with workflowskill, handles http.request,
 // html.select, etc.) since the host OpenClaw agent may not implement invokeTool.
-// LLM steps use BridgeLLMAdapter to delegate completion calls to OpenClaw.
+// LLM steps use AnthropicLLMAdapter with the API key read directly from
+// OpenClaw's credential store at ~/.openclaw/agents/main/agent/auth-profiles.json.
 
-import type { LLMAdapter, LLMResult, ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
-import { DevToolAdapter } from 'workflowskill';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import type { LLMAdapter, ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
+import { AnthropicLLMAdapter, DevToolAdapter } from 'workflowskill';
 
 /** Content block returned by the OpenClaw bridge. */
 interface TextContent {
@@ -25,7 +25,6 @@ export interface BridgeApi {
   invokeTool(name: string, params: Record<string, unknown>): Promise<{ content: TextContent[] }>;
   hasTool?(name: string): boolean; // optional — may not be implemented by all host versions
   listTools?(): Array<{ name: string; description: string }>;
-  completion(params: { model?: string; prompt: string }): Promise<{ content: TextContent[] }>;
 }
 
 export interface AdapterSet {
@@ -68,18 +67,33 @@ export class BridgeToolAdapter implements ToolAdapter {
   }
 }
 
-/** LLMAdapter that delegates to the host OpenClaw agent. */
-export class BridgeLLMAdapter implements LLMAdapter {
-  constructor(private readonly api: BridgeApi) {}
-
-  async call(model: string | undefined, prompt: string): Promise<LLMResult> {
-    const response = await this.api.completion({ model, prompt });
-    const text = response.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-    return { text, tokens: { input: 0, output: 0 } };
+/**
+ * Read the Anthropic API key from OpenClaw's credential store.
+ * Throws a clear error if the file is missing or has no anthropic profile.
+ */
+function readAnthropicApiKey(): string {
+  const profilesPath = join(homedir(), '.openclaw', 'agents', 'main', 'agent', 'auth-profiles.json');
+  let parsed: {
+    profiles?: Record<string, { provider?: string; key?: string }>;
+    lastGood?: Record<string, string>;
+  };
+  try {
+    parsed = JSON.parse(readFileSync(profilesPath, 'utf-8')) as typeof parsed;
+  } catch (err) {
+    throw new Error(
+      `WorkflowSkill: could not read OpenClaw auth profiles from ${profilesPath}: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
+  const profiles = parsed.profiles ?? {};
+  // Prefer the profile OpenClaw last used successfully for anthropic.
+  const lastGoodName = parsed.lastGood?.['anthropic'];
+  const profile = lastGoodName ? profiles[lastGoodName] : Object.values(profiles).find((p) => p.provider === 'anthropic');
+  if (!profile?.key) {
+    throw new Error(
+      `WorkflowSkill: no anthropic profile found in ${profilesPath}. Add a profile with provider "anthropic" and a key.`,
+    );
+  }
+  return profile.key;
 }
 
 /**
@@ -87,7 +101,7 @@ export class BridgeLLMAdapter implements LLMAdapter {
  *
  * Tool steps are handled by DevToolAdapter (native http.request, html.select, etc.)
  * since host OpenClaw versions may not implement api.invokeTool.
- * LLM steps are handled by BridgeLLMAdapter (delegates to host completion endpoint).
+ * LLM steps use AnthropicLLMAdapter with the key read from OpenClaw's credential store.
  */
 export async function createBridgeAdapters(api: BridgeApi): Promise<AdapterSet> {
   // DevToolAdapter handles http.request, html.select, gmail.*, sheets.* natively.
@@ -95,7 +109,7 @@ export async function createBridgeAdapters(api: BridgeApi): Promise<AdapterSet> 
   const devAdapter = await DevToolAdapter.create({});
   const bridgeTool = new BridgeToolAdapter(api);
 
-  const llmAdapter = new BridgeLLMAdapter(api);
+  const llmAdapter = new AnthropicLLMAdapter(readAnthropicApiKey());
 
   const LLM_COMPLETE = 'llm';
   const LLM_COMPLETE_DESCRIPTOR: ToolDescriptor = {

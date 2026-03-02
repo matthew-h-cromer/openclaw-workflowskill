@@ -58,8 +58,6 @@ interface PluginApi {
   hasTool(name: string): boolean;
   /** List tools registered with the host agent. Optional. */
   listTools?(): Array<{ name: string; description: string }>;
-  /** Call the host agent's LLM. */
-  completion(params: { model?: string; prompt: string }): Promise<{ content: TextContent[] }>;
 }
 
 /** Wrap a handler result as an OpenClaw text content response. */
@@ -192,8 +190,8 @@ export default {
     registerTool({
       name: 'llm',
       description:
-        'Call the host LLM and return its text response. ' +
-        'Routes through OpenClaw credentials — no separate API key required. ' +
+        'Call Anthropic directly and return the text response. ' +
+        'Uses the API key from OpenClaw\'s credential store (~/.openclaw/agents/main/agent/auth-profiles.json). ' +
         'Use in workflow tool steps when you need LLM reasoning inline. ' +
         'model is optional (haiku / sonnet / opus or full model ID); omit for the default.',
       parameters: {
@@ -205,19 +203,16 @@ export default {
           },
           model: {
             type: 'string',
-            description: 'Model alias or ID. Optional — omit to use the openclaw default.',
+            description: 'Model alias or ID. Optional — omit to use the Anthropic default.',
           },
         },
         required: ['prompt'],
       },
       execute: async (_id, params) => {
+        const adapters = await adaptersPromise;
         const { prompt, model } = params as { prompt: string; model?: string };
-        const response = await api.completion({ model, prompt });
-        const text = response.content
-          .filter((b) => b.type === 'text')
-          .map((b) => b.text)
-          .join('');
-        return toContent({ text });
+        const result = await adapters.llmAdapter.call(model, prompt);
+        return toContent({ text: result.text });
       },
     });
   },
