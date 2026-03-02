@@ -11,10 +11,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noEmit": true,
-    "paths": {
-      "workflowskill": ["../workflowskill/runtime/src/index.ts"]
-    }
+    "noEmit": true
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]

@@ -4,10 +4,35 @@
   "description": "WorkflowSkill plugin for OpenClaw — author, validate, run, and review YAML workflows",
   "type": "module",
   "main": "index.ts",
-  "keywords": ["openclaw", "workflowskill", "workflow", "automation"],
+  "exports": {
+    ".": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "lib/",
+    "tools/",
+    "openclaw.plugin.json",
+    "LICENSE"
+  ],
+  "keywords": [
+    "openclaw",
+    "workflowskill",
+    "workflow",
+    "automation"
+  ],
   "license": "MIT",
+  "author": "Matthew Cromer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matthew-h-cromer/openclaw-workflowskill.git"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "openclaw": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   },
   "peerDependencies": {
     "workflowskill": ">=0.1.0"
@@ -16,10 +41,11 @@
     "@types/node": "^25.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "workflowskill": "file:../workflowskill/runtime"
+    "workflowskill": "^0.1.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit --project tsconfig.json",
-    "reset": "bash scripts/reset.sh"
+    "reset": "bash scripts/reset.sh",
+    "prepublishOnly": "tsc --noEmit --project tsconfig.json"
   }
 }

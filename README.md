@@ -48,34 +48,25 @@ cron  (schedule for automated execution)
 
 ## Quick Start
 
-Requires [OpenClaw](https://openclaw.ai) and the [WorkflowSkill](https://github.com/matthew-h-cromer/workflowskill) runtime built locally.
+Requires [OpenClaw](https://openclaw.ai).
 
-### 1. Build the WorkflowSkill runtime
-
-```bash
-cd /path/to/workflowskill/runtime
-npm install
-npm run build
-```
-
-### 2. Install the plugin
+### 1. Install the plugin
 
 ```bash
-cd /path/to/openclaw-workflowskill
-openclaw plugins install --link "$(pwd)"
+openclaw plugins install openclaw-workflowskill
 ```
 
-### 3. Configure Anthropic credentials
+### 2. Configure Anthropic credentials
 
 The plugin reads your Anthropic API key from OpenClaw's credential store — no `.env` file needed. Make sure an Anthropic auth profile is configured in OpenClaw (`~/.openclaw/agents/main/agent/auth-profiles.json`).
 
-### 4. Restart the gateway
+### 3. Restart the gateway
 
 ```bash
 openclaw gateway restart
 ```
 
-### 5. Verify
+### 4. Verify
 
 ```bash
 openclaw plugins list
@@ -186,16 +177,17 @@ Returns `{ text: string }`.
 
 ## Development
 
-The plugin imports from `workflowskill` (peer dependency). The `tsconfig.json` maps `workflowskill` to `../workflowskill/runtime/src/index.ts` for local development, so no build step is required for type checking:
+The plugin imports from `workflowskill` (peer dependency), installed from npm. No build step is required for type checking:
 
 ```bash
 npm install
 npm run typecheck
 ```
 
-To test changes, restart the OpenClaw gateway:
+To test changes, link the plugin locally and restart the OpenClaw gateway:
 
 ```bash
+openclaw plugins install --link "$(pwd)"
 openclaw gateway restart
 openclaw tools invoke workflowskill_validate '{"content": "..."}'
 ```
