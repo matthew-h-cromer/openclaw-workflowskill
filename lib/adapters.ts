@@ -10,17 +10,17 @@ import { join } from 'node:path';
 import type { LLMAdapter, ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
 import { AnthropicLLMAdapter, BuiltinToolAdapter } from 'workflowskill';
 
-// Tools served locally by BuiltinToolAdapter (html.select, http.request, etc.)
+// Tools served locally by BuiltinToolAdapter (web.scrape, etc.)
 // These bypass the gateway and run in-process.
-const DEV_TOOL_NAMES = new Set(['html.select', 'http.request']);
+const BUILTIN_TOOL_NAMES = new Set(['web.scrape']);
 
 // Lazy singleton — BuiltinToolAdapter.create() is async so we initialize on first use.
-let _devToolsPromise: Promise<BuiltinToolAdapter> | null = null;
-function getDevTools(): Promise<BuiltinToolAdapter> {
-  if (!_devToolsPromise) {
-    _devToolsPromise = BuiltinToolAdapter.create();
+let _builtinToolsPromise: Promise<BuiltinToolAdapter> | null = null;
+function getBuiltinTools(): Promise<BuiltinToolAdapter> {
+  if (!_builtinToolsPromise) {
+    _builtinToolsPromise = BuiltinToolAdapter.create();
   }
-  return _devToolsPromise as Promise<BuiltinToolAdapter>;
+  return _builtinToolsPromise as Promise<BuiltinToolAdapter>;
 }
 
 export interface GatewayConfig {
@@ -166,7 +166,7 @@ export function createAdapters(gatewayConfig: GatewayConfig): AdapterSet {
   const toolAdapter: ToolAdapter = {
     has(toolName: string): boolean {
       if (toolName === LLM_COMPLETE) return true;
-      if (DEV_TOOL_NAMES.has(toolName)) return true;
+      if (BUILTIN_TOOL_NAMES.has(toolName)) return true;
       return hostTools.has(toolName);
     },
     async invoke(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
@@ -177,9 +177,9 @@ export function createAdapters(gatewayConfig: GatewayConfig): AdapterSet {
         );
         return { output: { text: result.text } };
       }
-      if (DEV_TOOL_NAMES.has(toolName)) {
-        const devTools = await getDevTools();
-        return devTools.invoke(toolName, args);
+      if (BUILTIN_TOOL_NAMES.has(toolName)) {
+        const builtinTools = await getBuiltinTools();
+        return builtinTools.invoke(toolName, args);
       }
       return hostTools.invoke(toolName, args);
     },
