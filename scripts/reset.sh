@@ -47,6 +47,7 @@ OPENCLAW_DIR="$HOME/.openclaw"
 
 # Sessions
 rm -rf "$OPENCLAW_DIR/sessions"
+rm -rf "$OPENCLAW_DIR"/agents/*/sessions
 ok "Removed sessions"
 
 # Memory DB
