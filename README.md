@@ -1,36 +1,54 @@
-# openclaw-workflowskill
+# OpenClaw WorkflowSkill Plugin
 
-OpenClaw plugin for [WorkflowSkill](https://github.com/matthewcromer/workflowskill). Gives the OpenClaw agent native tools to author, validate, run, and review declarative YAML workflows — without leaving the chat.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node: >=20](https://img.shields.io/badge/Node-%3E%3D20-green.svg)](https://nodejs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/matthew-h-cromer/openclaw-workflowskill/issues)
 
-## What it does
+> [!IMPORTANT]
+> **Pre-release.** This plugin tracks the [WorkflowSkill](https://github.com/matthew-h-cromer/workflowskill) spec, which is not yet frozen. Expect breaking changes as the spec evolves.
 
-Registers four tools with the OpenClaw agent:
+Author, validate, run, and review WorkflowSkill workflows — without leaving the OpenClaw chat.
 
-| Tool | Description |
+1. Tell the agent what you need
+2. The agent writes, validates, and test-runs the workflow in chat
+3. Schedule it with cron — runs autonomously, no agent session needed
+
+## What it looks like
+
+> **You:** I want to check Hacker News for AI stories every morning and email me a summary.
+>
+> **Agent:** I'll author a WorkflowSkill for that. *(invokes `/workflowskill-author`, writes a SKILL.md, runs `workflowskill_validate`)*
+>
+> Validated — 3 steps: `fetch`, `filter`, `email`. Running a test now... *(invokes `workflowskill_run`)*
+>
+> Run complete: 4 AI stories found, summary drafted. Ready to schedule — want me to set up a daily cron at 8 AM?
+
+## Workflow Lifecycle
+
+```
+describe workflow in natural language
+    ↓
+/workflowskill-author  (agent writes YAML)
+    ↓
+workflowskill_validate  (catch errors early)
+    ↓
+workflowskill_run  (test run, review RunLog)
+    ↓
+workflowskill_runs  (diagnose failures, iterate)
+    ↓
+cron  (schedule for automated execution)
+```
+
+## Repositories
+
+| Repo | Description |
 |------|-------------|
-| `workflowskill_validate` | Parse and validate a SKILL.md or raw YAML workflow |
-| `workflowskill_run` | Execute a workflow and return a compact run summary |
-| `workflowskill_runs` | List and inspect past run logs |
-| `workflowskill_llm` | Call Anthropic directly for inline LLM reasoning in workflows |
+| [workflowskill](https://github.com/matthew-h-cromer/workflowskill) | Specification and reference runtime |
+| **openclaw-workflowskill** (this repo) | OpenClaw plugin — author, validate, run, and review workflows from the agent |
 
-Also ships the `/workflowskill-author` skill — a conversational prompt that guides the agent through authoring, testing, and iterating on workflows.
+## Quick Start
 
-## Architecture
-
-### Tool delegation
-
-Workflow `tool` steps are forwarded to the **OpenClaw gateway** via `POST /tools/invoke`. Any tool registered with the gateway is available to a workflow — the plugin sends the tool name and args as JSON and returns the result. Gateway auth (`config.gateway.auth.token`) must be configured or the plugin will refuse to start.
-
-The `workflowskill_llm` tool is built-in: it calls Anthropic directly using the API key from OpenClaw's credential store, and is always available.
-
-The plugin's own four tools (`workflowskill_validate`, `workflowskill_run`, `workflowskill_runs`, `workflowskill_llm`) are blocked from being forwarded to the gateway to prevent infinite recursion.
-
-## Requirements
-
-- [OpenClaw](https://openclaw.ai) installed and running
-- [WorkflowSkill](https://github.com/matthewcromer/workflowskill) runtime built locally
-
-## Setup
+Requires [OpenClaw](https://openclaw.ai) and the [WorkflowSkill](https://github.com/matthew-h-cromer/workflowskill) runtime built locally.
 
 ### 1. Build the WorkflowSkill runtime
 
@@ -67,23 +85,59 @@ openclaw skills list
 # → workflowskill-author (user-invocable)
 ```
 
-## Workflow lifecycle
+## Tools
+
+Registers four tools with the OpenClaw agent:
+
+| Tool | Description |
+|------|-------------|
+| `workflowskill_validate` | Parse and validate a SKILL.md or raw YAML workflow |
+| `workflowskill_run` | Execute a workflow and return a compact run summary |
+| `workflowskill_runs` | List and inspect past run logs |
+| `workflowskill_llm` | Call Anthropic directly for inline LLM reasoning in workflows |
+
+Also ships the `/workflowskill-author` skill — just say "I want to automate X" and the agent handles the rest: researching, writing, validating, and test-running the workflow in chat.
+
+## Workspace Layout
 
 ```
-describe workflow in natural language
-    ↓
-/workflowskill-author  (agent writes YAML)
-    ↓
-workflowskill_validate  (catch errors early)
-    ↓
-workflowskill_run  (test run, review RunLog)
-    ↓
-workflowskill_runs  (diagnose failures, iterate)
-    ↓
-cron  (schedule for automated execution)
+<workspace>/
+  skills/              # Workflow SKILL.md files (one per subdirectory)
+    daily-triage/
+      SKILL.md
+  workflow-runs/       # RunLog JSON files (auto-created)
+    daily-triage-2024-01-15T09-00-00.000Z.json
 ```
 
-## Tool reference
+## Cron Scheduling
+
+Schedule a workflow to run autonomously via OpenClaw's cron, at `~/.openclaw/cron/jobs.json`:
+
+```json
+{
+  "payload": {
+    "kind": "agentTurn",
+    "message": "Run the daily-triage workflow using workflowskill_run\n\nSend results to Slack in the #general channel",
+    "model": "haiku"
+  }
+}
+```
+
+Always set `"model": "haiku"` — cron runs are lightweight orchestration and don't need a powerful model. Put delivery instructions (e.g. Slack channel) in the cron message, not in the workflow, so workflows stay reusable.
+
+Review past runs via `workflowskill_runs`.
+
+## Architecture
+
+### Tool delegation
+
+Workflow `tool` steps are forwarded to the **OpenClaw gateway** via `POST /tools/invoke`. Any tool registered with the gateway is available to a workflow — the plugin sends the tool name and args as JSON and returns the result. Gateway auth (`config.gateway.auth.token`) must be configured or the plugin will refuse to start.
+
+The `workflowskill_llm` tool is built-in: it calls Anthropic directly using the API key from OpenClaw's credential store, and is always available.
+
+The plugin's own four tools (`workflowskill_validate`, `workflowskill_run`, `workflowskill_runs`, `workflowskill_llm`) are blocked from being forwarded to the gateway to prevent infinite recursion.
+
+## Tool Reference
 
 ### `workflowskill_validate`
 
@@ -129,28 +183,6 @@ Call Anthropic directly and return the text response. Uses the API key from Open
 | `model` | string | no | Model alias (`haiku`, `sonnet`, `opus`) or full model ID — omit to use the default |
 
 Returns `{ text: string }`.
-
-## Workspace layout
-
-```
-<workspace>/
-  skills/              # Workflow SKILL.md files (one per subdirectory)
-    daily-triage/
-      SKILL.md
-  workflow-runs/       # RunLog JSON files (auto-created)
-    daily-triage-2024-01-15T09-00-00.000Z.json
-```
-
-## Cron scheduling
-
-Run workflows on a schedule via system cron — no agent session required:
-
-```cron
-# Every weekday at 9 AM
-0 9 * * 1-5 workflowskill run /path/to/skills/daily-triage/SKILL.md >> /tmp/daily-triage.log 2>&1
-```
-
-Review past runs later via `workflowskill_runs`.
 
 ## Development
 
