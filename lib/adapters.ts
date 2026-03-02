@@ -8,19 +8,19 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { LLMAdapter, ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
-import { AnthropicLLMAdapter, DevToolAdapter } from 'workflowskill';
+import { AnthropicLLMAdapter, BuiltinToolAdapter } from 'workflowskill';
 
-// Tools served locally by DevToolAdapter (html.select, http.request, etc.)
+// Tools served locally by BuiltinToolAdapter (html.select, http.request, etc.)
 // These bypass the gateway and run in-process.
 const DEV_TOOL_NAMES = new Set(['html.select', 'http.request']);
 
-// Lazy singleton — DevToolAdapter.create() is async so we initialize on first use.
-let _devToolsPromise: Promise<DevToolAdapter> | null = null;
-function getDevTools(): Promise<DevToolAdapter> {
+// Lazy singleton — BuiltinToolAdapter.create() is async so we initialize on first use.
+let _devToolsPromise: Promise<BuiltinToolAdapter> | null = null;
+function getDevTools(): Promise<BuiltinToolAdapter> {
   if (!_devToolsPromise) {
-    _devToolsPromise = DevToolAdapter.create({});
+    _devToolsPromise = BuiltinToolAdapter.create();
   }
-  return _devToolsPromise;
+  return _devToolsPromise as Promise<BuiltinToolAdapter>;
 }
 
 export interface GatewayConfig {
