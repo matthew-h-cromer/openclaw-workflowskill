@@ -4,13 +4,14 @@ OpenClaw plugin for [WorkflowSkill](https://github.com/matthewcromer/workflowski
 
 ## What it does
 
-Registers three tools with the OpenClaw agent:
+Registers four tools with the OpenClaw agent:
 
 | Tool | Description |
 |------|-------------|
 | `workflowskill_validate` | Parse and validate a SKILL.md or raw YAML workflow |
-| `workflowskill_run` | Execute a workflow and return the full RunLog |
+| `workflowskill_run` | Execute a workflow and return a compact run summary |
 | `workflowskill_runs` | List and inspect past run logs |
+| `llm` | Call Anthropic directly for inline LLM reasoning in workflows |
 
 Also ships the `/workflowskill-author` skill — a conversational prompt that guides the agent through authoring, testing, and iterating on workflows.
 
@@ -36,19 +37,9 @@ cd /path/to/openclaw-workflowskill
 openclaw plugins install --link "$(pwd)"
 ```
 
-### 3. Set environment variables
+### 3. Configure Anthropic credentials
 
-Create or update `~/.openclaw/.env`:
-
-```bash
-# Required for LLM steps in workflows and for conversational authoring
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Optional: enables Gmail and Sheets built-in tools
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_REFRESH_TOKEN=...
-```
+The plugin reads your Anthropic API key from OpenClaw's credential store — no `.env` file needed. Make sure an Anthropic auth profile is configured in OpenClaw (`~/.openclaw/agents/main/agent/auth-profiles.json`).
 
 ### 4. Restart the gateway
 
@@ -60,7 +51,7 @@ openclaw gateway restart
 
 ```bash
 openclaw plugins list
-# → workflowskill: 3 tools registered
+# → workflowskill: 4 tools registered
 
 openclaw skills list
 # → workflowskill-author (user-invocable)
@@ -96,7 +87,7 @@ Returns `{ valid, errors[], name, stepCount, stepTypes[] }`.
 
 ### `workflowskill_run`
 
-Execute a workflow and return the full RunLog. Persists to `workflow-runs/`.
+Execute a workflow and return a compact run summary. The full RunLog is persisted to `workflow-runs/` and retrievable via `workflowskill_runs` with `run_id`.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -117,6 +108,17 @@ List and inspect past run logs.
 | `status` | string | no | Filter by `"success"` or `"failed"` |
 
 No params → 20 most recent runs (summary view).
+
+### `llm`
+
+Call Anthropic directly and return the text response. Uses the API key from OpenClaw's credential store. Useful in workflow `tool` steps when you need inline LLM reasoning.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `prompt` | string | yes | The prompt to send to the LLM |
+| `model` | string | no | Model alias (`haiku`, `sonnet`, `opus`) or full model ID — omit to use the default |
+
+Returns `{ text: string }`.
 
 ## Workspace layout
 
