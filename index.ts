@@ -9,7 +9,7 @@ import { AUTHORING_SKILL } from 'workflowskill';
 import { validateHandler } from './tools/validate.js';
 import { runHandler } from './tools/run.js';
 import { runsHandler } from './tools/runs.js';
-import { createBridgeAdapters } from './lib/adapters.js';
+import { createAdapters, type GatewayConfig } from './lib/adapters.js';
 
 // ─── OpenClaw plugin API types ─────────────────────────────────────────────
 
@@ -44,6 +44,11 @@ interface ToolSpec {
 /** OpenClaw agent config shape (relevant subset). */
 interface OpenClawConfig {
   agents?: { defaults?: { workspace?: string } };
+  gateway?: {
+    port?: number;
+    bind?: string;
+    auth?: { token?: string; password?: string };
+  };
 }
 
 /** The API object OpenClaw passes to register(). */
@@ -52,12 +57,22 @@ interface PluginApi {
   config: OpenClawConfig;
   /** Register a tool with the OpenClaw agent. */
   registerTool(spec: ToolSpec): void;
-  /** Invoke a tool registered with the host agent. */
-  invokeTool(name: string, params: Record<string, unknown>): Promise<{ content: TextContent[] }>;
-  /** Check whether a tool is registered with the host agent. */
-  hasTool(name: string): boolean;
-  /** List tools registered with the host agent. Optional. */
-  listTools?(): Array<{ name: string; description: string }>;
+}
+
+/** Build a GatewayConfig from the OpenClaw config. Throws if auth is missing. */
+function buildGatewayConfig(config: OpenClawConfig): GatewayConfig {
+  const token = config?.gateway?.auth?.token;
+  if (!token) {
+    throw new Error(
+      'WorkflowSkill plugin requires gateway auth to be configured. ' +
+        'Set config.gateway.auth.token in your OpenClaw configuration.',
+    );
+  }
+  // 'loopback' is an OpenClaw keyword meaning 127.0.0.1 — normalise to localhost.
+  const rawBind = config?.gateway?.bind ?? 'localhost';
+  const bind = rawBind === 'loopback' ? 'localhost' : rawBind;
+  const port = config?.gateway?.port ?? 3000;
+  return { baseUrl: `http://${bind}:${port}`, token };
 }
 
 /** Wrap a handler result as an OpenClaw text content response. */
@@ -84,9 +99,8 @@ export default {
       );
     }
 
-    // createBridgeAdapters is async (DevToolAdapter.create initialises tool registrations).
-    // Lazy-initialise: create the promise once, await it inside each execute handler.
-    const adaptersPromise = createBridgeAdapters(api);
+    const gatewayConfig = buildGatewayConfig(api.config);
+    const adapters = createAdapters(gatewayConfig);
     const { registerTool } = api;
 
     // ── workflowskill_validate ────────────────────────────────────────────
@@ -107,7 +121,6 @@ export default {
         required: ['content'],
       },
       execute: async (_id, params) => {
-        const adapters = await adaptersPromise;
         return toContent(await validateHandler(params as { content: string }, adapters.toolAdapter));
       },
     });
@@ -138,7 +151,6 @@ export default {
         },
       },
       execute: async (_id, params) => {
-        const adapters = await adaptersPromise;
         return toContent(
           await runHandler(
             params as { workflow_name?: string; content?: string; inputs?: Record<string, unknown> },
@@ -187,9 +199,9 @@ export default {
       },
     });
 
-    // ── llm ───────────────────────────────────────────────────────────────────
+    // ── workflowskill_llm ─────────────────────────────────────────────────────
     registerTool({
-      name: 'llm',
+      name: 'workflowskill_llm',
       description:
         'Call Anthropic directly and return the text response. ' +
         'Uses the API key from OpenClaw\'s credential store (~/.openclaw/agents/main/agent/auth-profiles.json). ' +
@@ -210,7 +222,6 @@ export default {
         required: ['prompt'],
       },
       execute: async (_id, params) => {
-        const adapters = await adaptersPromise;
         const { prompt, model } = params as { prompt: string; model?: string };
         const result = await adapters.llmAdapter.call(model, prompt);
         return toContent({ text: result.text });

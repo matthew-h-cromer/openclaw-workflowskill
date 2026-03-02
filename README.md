@@ -11,9 +11,19 @@ Registers four tools with the OpenClaw agent:
 | `workflowskill_validate` | Parse and validate a SKILL.md or raw YAML workflow |
 | `workflowskill_run` | Execute a workflow and return a compact run summary |
 | `workflowskill_runs` | List and inspect past run logs |
-| `llm` | Call Anthropic directly for inline LLM reasoning in workflows |
+| `workflowskill_llm` | Call Anthropic directly for inline LLM reasoning in workflows |
 
 Also ships the `/workflowskill-author` skill — a conversational prompt that guides the agent through authoring, testing, and iterating on workflows.
+
+## Architecture
+
+### Tool delegation
+
+Workflow `tool` steps are forwarded to the **OpenClaw gateway** via `POST /tools/invoke`. Any tool registered with the gateway is available to a workflow — the plugin sends the tool name and args as JSON and returns the result. Gateway auth (`config.gateway.auth.token`) must be configured or the plugin will refuse to start.
+
+The `workflowskill_llm` tool is built-in: it calls Anthropic directly using the API key from OpenClaw's credential store, and is always available.
+
+The plugin's own four tools (`workflowskill_validate`, `workflowskill_run`, `workflowskill_runs`, `workflowskill_llm`) are blocked from being forwarded to the gateway to prevent infinite recursion.
 
 ## Requirements
 
@@ -109,7 +119,7 @@ List and inspect past run logs.
 
 No params → 20 most recent runs (summary view).
 
-### `llm`
+### `workflowskill_llm`
 
 Call Anthropic directly and return the text response. Uses the API key from OpenClaw's credential store. Useful in workflow `tool` steps when you need inline LLM reasoning.
 
