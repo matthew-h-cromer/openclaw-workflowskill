@@ -10,14 +10,18 @@ Save authored workflows to:
 
 ### Scheduling Workflows via Cron
 
-OpenClaw schedules cron jobs at `~/.openclaw/cron/jobs.json`)
+OpenClaw schedules cron jobs at `~/.openclaw/cron/jobs.json`.
 
-When a cron triggers, it invokes an agent session. The cron message should be a short trigger. Instructions to message the user should be encapsulated in the cron rather than the workflow. This ensures workflows are maximally reusable and composable.
+When a cron triggers, it invokes an agent session. The message should be a short trigger — put delivery instructions (e.g. Slack channel) in the cron, not the workflow, so workflows stay reusable. Do not put business logic in the cron prompt; use `workflowskill_run` to invoke the workflow instead.
 
+Always set `"model": "haiku"` on cron payloads — cron runs are lightweight orchestration and don't need a powerful model.
+
+```json
+{
+  "payload": {
+    "kind": "agentTurn",
+    "message": "Run the <name> workflow using workflowskill_run\n\nSend results to Slack in the #general channel",
+    "model": "haiku"
+  }
+}
 ```
-Run the <name> workflow using workflowskill_run
-
-Send results to Slack in the #general channel
-```
-
-Do not put business logic in the cron prompt. This duplicates the workflow, is fragile, and bypasses validation and run logging.
