@@ -208,7 +208,7 @@ export default {
     registerTool({
       name: 'workflowskill_llm',
       description:
-        'Call the Anthropic LLM and return { text }. ' +
+        'Call the Anthropic LLM and return the response as plain text. ' +
         'Uses the API key from OpenClaw\'s credential store. ' +
         'Use in workflow tool steps when you need LLM reasoning inline. ' +
         'model is optional (haiku / sonnet / opus or full model ID); omit for haiku.',

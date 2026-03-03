@@ -4,6 +4,19 @@
 
 import type { ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
 
+/** Unwrap MCP text-content envelope so workflows see actual tool output. */
+function unwrapMcpContent(body: unknown): unknown {
+  if (body !== null && typeof body === 'object' && 'content' in body) {
+    const { content } = body as { content: unknown };
+    if (Array.isArray(content) && content.length === 1
+      && content[0]?.type === 'text' && typeof content[0]?.text === 'string') {
+      try { return JSON.parse(content[0].text); }
+      catch { return content[0].text; }
+    }
+  }
+  return body;
+}
+
 export interface GatewayConfig {
   baseUrl: string;
   token: string;
@@ -61,7 +74,7 @@ export class HostToolAdapter implements ToolAdapter {
 
     if (response.status === 200) {
       const result = (await response.json()) as unknown;
-      return { output: result };
+      return { output: unwrapMcpContent(result) };
     }
     if (response.status === 404) {
       return { output: null, error: `Tool '${toolName}' not found or blocked by the gateway.` };

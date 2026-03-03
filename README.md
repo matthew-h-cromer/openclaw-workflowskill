@@ -137,7 +137,7 @@ Workflow `tool` steps are forwarded to the **OpenClaw gateway** via `POST /tools
 
 The `workflowskill_llm` tool is built-in: it calls Anthropic directly using the API key from OpenClaw's credential store, and is always available.
 
-The plugin's own four tools (`workflowskill_validate`, `workflowskill_run`, `workflowskill_runs`, `workflowskill_llm`) are blocked from being forwarded to the gateway to prevent infinite recursion.
+Only `workflowskill_run` is blocked from gateway forwarding — it is self-referencing and would create infinite recursion. The other three plugin tools (`workflowskill_validate`, `workflowskill_runs`, `workflowskill_llm`) are leaf operations and are forwarded normally.
 
 ## Tool Reference
 
@@ -184,7 +184,7 @@ Call Anthropic directly and return the text response. Uses the API key from Open
 | `prompt` | string | yes      | The prompt to send to the LLM                                                      |
 | `model`  | string | no       | Model alias (`haiku`, `sonnet`, `opus`) or full model ID — omit to use the default |
 
-Returns `{ text: string }`.
+Returns the LLM response as a plain text string.
 
 ## Development
 

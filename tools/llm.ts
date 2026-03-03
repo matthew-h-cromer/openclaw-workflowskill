@@ -9,10 +9,6 @@ export interface LlmParams {
   model?: string;
 }
 
-export interface LlmResult {
-  text: string;
-}
-
 const MODEL_ALIASES: Record<string, string> = {
   haiku: 'claude-haiku-4-5-20251001',
   sonnet: 'claude-sonnet-4-6',
@@ -73,9 +69,8 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
   return data.content.find((b) => b.type === 'text')?.text ?? '';
 }
 
-export async function llmHandler(params: LlmParams): Promise<LlmResult> {
+export async function llmHandler(params: LlmParams): Promise<string> {
   const { prompt, model = DEFAULT_MODEL } = params;
   const apiKey = readAnthropicApiKey();
-  const text = await callAnthropic(apiKey, model, prompt);
-  return { text };
+  return callAnthropic(apiKey, model, prompt);
 }
