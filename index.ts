@@ -148,7 +148,7 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
 // ─── Plugin entry point ────────────────────────────────────────────────────
 
 export default {
-  id: 'workflowskill',
+  id: 'openclaw-workflowskill',
 
   register(api: PluginApi): void {
     const workspace = api?.config?.agents?.defaults?.workspace;

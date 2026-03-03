@@ -1,5 +1,5 @@
 {
-  "id": "workflowskill",
+  "id": "openclaw-workflowskill",
   "name": "WorkflowSkill",
   "description": "Author, validate, run, and review WorkflowSkill YAML workflows",
   "version": "0.3.1",
