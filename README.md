@@ -42,7 +42,7 @@ openclaw plugins install openclaw-workflowskill
 
 ```bash
 openclaw config set plugins.allow '["openclaw-workflowskill"]'
-openclaw config set tools.alsoAllow '["openclaw-workflowskill"]'
+openclaw config set tools.alsoAllow '["openclaw-workflowskill", "web_fetch"]'
 ```
 
 The first command allowlists the plugin so the gateway loads it. The second makes its tools available in every session — including cron jobs — so agents can invoke `workflowskill_run` to execute workflows autonomously.
