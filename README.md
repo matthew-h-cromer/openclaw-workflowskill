@@ -34,13 +34,22 @@ In OpenClaw settings, change your profile from `messaging` (the default) to `cod
 openclaw plugins install openclaw-workflowskill
 ```
 
-### 3. Restart the gateway
+### 3. Configure
+
+```bash
+openclaw config set plugins.allow '["openclaw-workflowskill"]'
+openclaw config set tools.alsoAllow '["openclaw-workflowskill"]'
+```
+
+The first command allowlists the plugin for loading. The second makes its tools available in all sessions (including cron).
+
+### 4. Restart the gateway
 
 ```bash
 openclaw gateway restart
 ```
 
-### 4. Verify
+### 5. Verify
 
 ```bash
 openclaw plugins list
@@ -52,7 +61,7 @@ openclaw skills list
 
 > **Note:** `workflowskill_llm` uses your Anthropic credentials from the main agent — no separate API key configuration needed.
 
-### 5. Create a workflow
+### 6. Create a workflow
 
 Just tell the agent what you want to automate:
 
@@ -64,7 +73,7 @@ Just tell the agent what you want to automate:
 >
 > Run complete: 4 AI stories found, summary drafted. Ready to schedule — want me to set up a daily cron at 8 AM?
 
-### 6. Schedule it
+### 7. Schedule it
 
 Ask the agent to set up a cron job, or add one manually at `~/.openclaw/cron/jobs.json`:
 
@@ -79,6 +88,14 @@ Ask the agent to set up a cron job, or add one manually at `~/.openclaw/cron/job
 ```
 
 Your agent will use `"model": "haiku"` for cron jobs, ensuring execution is cheap and lightweight.
+
+> **Important:** Plugin tools are not available in sessions by default. Before scheduling, ensure `tools.alsoAllow` includes `openclaw-workflowskill`:
+>
+> ```bash
+> openclaw config set tools.alsoAllow '["openclaw-workflowskill"]'
+> ```
+>
+> Without this, cron sessions cannot invoke `workflowskill_run` and will fail silently.
 
 ## Tools
 
@@ -177,8 +194,11 @@ To test changes, link the plugin locally and restart the OpenClaw gateway:
 ```bash
 openclaw plugins install --link "$(pwd)"
 openclaw gateway restart
-openclaw tools invoke workflowskill_validate '{"content": "..."}'
 ```
+
+Then verify tools work by asking the agent:
+
+> Validate this workflow: `inputs: { url: { type: string } }`
 
 ## License
 

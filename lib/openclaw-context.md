@@ -25,3 +25,12 @@ Always set `"model": "haiku"` on cron payloads — cron runs are lightweight orc
   }
 }
 ```
+
+> **Important:** Plugin tools are not available in sessions by default.
+> Before scheduling, ensure `tools.alsoAllow` includes `openclaw-workflowskill`:
+>
+> ```bash
+> openclaw config set tools.alsoAllow '["openclaw-workflowskill"]'
+> ```
+>
+> Without this, cron sessions cannot invoke `workflowskill_run` and will fail silently.

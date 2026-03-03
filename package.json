@@ -1,6 +1,6 @@
 {
   "name": "openclaw-workflowskill",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "WorkflowSkill plugin for OpenClaw — author, validate, run, and review YAML workflows",
   "type": "module",
   "main": "index.ts",
@@ -35,7 +35,7 @@
     ]
   },
   "dependencies": {
-    "workflowskill": "^0.3.1"
+    "workflowskill": "^0.3.2"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
