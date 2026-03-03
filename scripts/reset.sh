@@ -31,7 +31,15 @@ if [ -f "$PLIST" ]; then
   rm -f "$PLIST"
   ok "LaunchAgent uninstalled"
 else
-  ok "Gateway stopped (no LaunchAgent present)"
+  ok "No LaunchAgent present"
+fi
+
+# Kill any standalone gateway process still holding the port
+GATEWAY_PIDS=$(pgrep -f "openclaw-gateway" 2>/dev/null || true)
+if [ -n "$GATEWAY_PIDS" ]; then
+  echo "$GATEWAY_PIDS" | xargs kill 2>/dev/null || true
+  sleep 1
+  ok "Killed running gateway process(es): $GATEWAY_PIDS"
 fi
 
 # ---------------------------------------------------------------------------
