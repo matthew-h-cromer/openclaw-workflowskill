@@ -26,7 +26,11 @@ Requires [OpenClaw](https://openclaw.ai).
 
 ### 1. Set your profile to Coding
 
-In OpenClaw settings, change your profile from `messaging` (the default) to `coding`. The `coding` profile grants the agent filesystem access, which is required to read and write workflow files. For more granular access configuration, refer to the [OpenClaw documentation](https://docs.openclaw.ai/).
+```bash
+openclaw config set tools.profile coding
+```
+
+The `coding` profile grants the agent filesystem access, which is required to read and write workflow files. For more granular access configuration, refer to the [OpenClaw documentation](https://docs.openclaw.ai/).
 
 ### 2. Install the plugin
 
@@ -41,13 +45,15 @@ openclaw config set plugins.allow '["openclaw-workflowskill"]'
 openclaw config set tools.alsoAllow '["openclaw-workflowskill"]'
 ```
 
-The first command allowlists the plugin for loading. The second makes its tools available in all sessions (including cron).
+The first command allowlists the plugin so the gateway loads it. The second makes its tools available in every session — including cron jobs — so agents can invoke `workflowskill_run` to execute workflows autonomously.
 
 ### 4. Restart the gateway
 
 ```bash
 openclaw gateway restart
 ```
+
+The gateway loads plugins and config at startup. A restart is required to pick up the plugin installation and config changes from the previous steps.
 
 ### 5. Verify
 
