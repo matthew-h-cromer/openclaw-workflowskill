@@ -1,37 +1,13 @@
-// adapters.ts — host-delegating adapters for the OpenClaw plugin.
+// adapters.ts — host-delegating tool adapter for the OpenClaw plugin.
 //
 // Tool steps delegate to the Gateway HTTP API via HostToolAdapter (POST /tools/invoke).
-// LLM steps use AnthropicLLMAdapter with the API key read directly from
-// OpenClaw's credential store at ~/.openclaw/agents/main/agent/auth-profiles.json.
 
-import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import type { LLMAdapter, ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
-import { AnthropicLLMAdapter, BuiltinToolAdapter } from 'workflowskill';
-
-// Tools served locally by BuiltinToolAdapter (web.scrape, etc.)
-// These bypass the gateway and run in-process.
-const BUILTIN_TOOL_NAMES = new Set(['web.scrape']);
-
-// Lazy singleton — BuiltinToolAdapter.create() is async so we initialize on first use.
-let _builtinToolsPromise: Promise<BuiltinToolAdapter> | null = null;
-function getBuiltinTools(): Promise<BuiltinToolAdapter> {
-  if (!_builtinToolsPromise) {
-    _builtinToolsPromise = BuiltinToolAdapter.create();
-  }
-  return _builtinToolsPromise as Promise<BuiltinToolAdapter>;
-}
+import type { ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
 
 export interface GatewayConfig {
   baseUrl: string;
   token: string;
   timeoutMs?: number;
-}
-
-export interface AdapterSet {
-  toolAdapter: ToolAdapter;
-  llmAdapter: LLMAdapter;
 }
 
 // Tools this plugin registers — must not be forwarded to the gateway to prevent infinite recursion.
@@ -116,84 +92,11 @@ export class HostToolAdapter implements ToolAdapter {
 }
 
 /**
- * Read the Anthropic API key from OpenClaw's credential store.
- * Throws a clear error if the file is missing or has no anthropic profile.
- */
-function readAnthropicApiKey(): string {
-  const profilesPath = join(homedir(), '.openclaw', 'agents', 'main', 'agent', 'auth-profiles.json');
-  let parsed: {
-    profiles?: Record<string, { provider?: string; key?: string }>;
-    lastGood?: Record<string, string>;
-  };
-  try {
-    parsed = JSON.parse(readFileSync(profilesPath, 'utf-8')) as typeof parsed;
-  } catch (err) {
-    throw new Error(
-      `WorkflowSkill: could not read OpenClaw auth profiles from ${profilesPath}: ${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
-  const profiles = parsed.profiles ?? {};
-  // Prefer the profile OpenClaw last used successfully for anthropic.
-  const lastGoodName = parsed.lastGood?.['anthropic'];
-  const profile = lastGoodName
-    ? profiles[lastGoodName]
-    : Object.values(profiles).find((p) => p.provider === 'anthropic');
-  if (!profile?.key) {
-    throw new Error(
-      `WorkflowSkill: no anthropic profile found in ${profilesPath}. Add a profile with provider "anthropic" and a key.`,
-    );
-  }
-  return profile.key;
-}
-
-/**
- * Create host adapters backed by the Gateway HTTP API.
+ * Create a ToolAdapter backed by the Gateway HTTP API.
  *
  * HostToolAdapter forwards tool steps to the gateway's POST /tools/invoke endpoint.
- * Self-referencing tools (the plugin's own four tools) are blocked to prevent recursion.
- * LLM steps use AnthropicLLMAdapter with the key read from OpenClaw's credential store.
+ * Self-referencing tools (the plugin's own tools) are blocked to prevent recursion.
  */
-export function createAdapters(gatewayConfig: GatewayConfig): AdapterSet {
-  const hostTools = new HostToolAdapter(gatewayConfig);
-  const llmAdapter = new AnthropicLLMAdapter(readAnthropicApiKey());
-
-  const LLM_COMPLETE = 'workflowskill_llm';
-  const LLM_COMPLETE_DESCRIPTOR: ToolDescriptor = {
-    name: LLM_COMPLETE,
-    description: 'Call the host LLM with a prompt; returns { text }.',
-  };
-
-  const toolAdapter: ToolAdapter = {
-    has(toolName: string): boolean {
-      if (toolName === LLM_COMPLETE) return true;
-      if (BUILTIN_TOOL_NAMES.has(toolName)) return true;
-      return hostTools.has(toolName);
-    },
-    async invoke(toolName: string, args: Record<string, unknown>): Promise<ToolResult> {
-      if (toolName === LLM_COMPLETE) {
-        const result = await llmAdapter.call(
-          args.model as string | undefined,
-          args.prompt as string,
-        );
-        return { output: { text: result.text } };
-      }
-      if (BUILTIN_TOOL_NAMES.has(toolName)) {
-        const builtinTools = await getBuiltinTools();
-        return builtinTools.invoke(toolName, args);
-      }
-      return hostTools.invoke(toolName, args);
-    },
-    list(): ToolDescriptor[] {
-      const hostToolList = hostTools.list();
-      return [
-        LLM_COMPLETE_DESCRIPTOR,
-        ...hostToolList.filter((t) => t.name !== LLM_COMPLETE),
-      ];
-    },
-  };
-
-  return {
-    toolAdapter,
-    llmAdapter,
-  };
+export function createToolAdapter(gatewayConfig: GatewayConfig): ToolAdapter {
+  return new HostToolAdapter(gatewayConfig);
 }

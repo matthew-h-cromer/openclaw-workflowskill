@@ -53,7 +53,7 @@ export interface RunSummaryEntry {
   duration_ms: number;
   steps_executed: number;
   steps_skipped: number;
-  total_tokens: number;
+  total_duration_ms: number;
   error_message?: string;
 }
 
@@ -87,7 +87,7 @@ export function listRuns(
         duration_ms: log.duration_ms,
         steps_executed: log.summary.steps_executed,
         steps_skipped: log.summary.steps_skipped,
-        total_tokens: log.summary.total_tokens,
+        total_duration_ms: log.summary.total_duration_ms,
         error_message: log.error?.message,
       });
     } catch {

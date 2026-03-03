@@ -4,12 +4,13 @@
 // Default-exports an object with id + register(api) per the OpenClaw plugin API.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AUTHORING_SKILL } from 'workflowskill';
 import { validateHandler } from './tools/validate.js';
 import { runHandler } from './tools/run.js';
 import { runsHandler } from './tools/runs.js';
-import { createAdapters, type GatewayConfig } from './lib/adapters.js';
+import { createToolAdapter, type GatewayConfig } from './lib/adapters.js';
 
 // ─── OpenClaw plugin API types ─────────────────────────────────────────────
 
@@ -80,6 +81,70 @@ function toContent(result: unknown): { content: TextContent[] } {
   return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
 }
 
+// ─── LLM helpers ───────────────────────────────────────────────────────────
+
+const MODEL_ALIASES: Record<string, string> = {
+  haiku: 'claude-haiku-4-5-20251001',
+  sonnet: 'claude-sonnet-4-6',
+  opus: 'claude-opus-4-6',
+};
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+
+function readAnthropicApiKey(): string {
+  const profilesPath = join(homedir(), '.openclaw', 'agents', 'main', 'agent', 'auth-profiles.json');
+  let parsed: {
+    profiles?: Record<string, { provider?: string; key?: string }>;
+    lastGood?: Record<string, string>;
+  };
+  try {
+    parsed = JSON.parse(readFileSync(profilesPath, 'utf-8')) as typeof parsed;
+  } catch (err) {
+    throw new Error(
+      `WorkflowSkill: could not read OpenClaw auth profiles from ${profilesPath}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  const profiles = parsed.profiles ?? {};
+  const lastGoodName = parsed.lastGood?.['anthropic'];
+  const profile = lastGoodName
+    ? profiles[lastGoodName]
+    : Object.values(profiles).find((p) => p.provider === 'anthropic');
+  if (!profile?.key) {
+    throw new Error(
+      `WorkflowSkill: no anthropic profile found in ${profilesPath}. Add a profile with provider "anthropic" and a key.`,
+    );
+  }
+  return profile.key;
+}
+
+const ANTHROPIC_TIMEOUT_MS = 60_000;
+
+async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<string> {
+  const resolvedModel = MODEL_ALIASES[model] ?? model;
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: resolvedModel,
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+    signal: AbortSignal.timeout(ANTHROPIC_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Anthropic API error ${response.status}: ${body}`);
+  }
+  const data = (await response.json()) as {
+    content: Array<{ type: string; text: string }>;
+  };
+  const text = data.content.find((b) => b.type === 'text')?.text ?? '';
+  return text;
+}
+
 // ─── Plugin entry point ────────────────────────────────────────────────────
 
 export default {
@@ -104,7 +169,7 @@ export default {
     writeFileSync(join(skillDir, 'SKILL.md'), AUTHORING_SKILL + '\n' + openclawContext, 'utf-8');
 
     const gatewayConfig = buildGatewayConfig(api.config);
-    const adapters = createAdapters(gatewayConfig);
+    const toolAdapter = createToolAdapter(gatewayConfig);
     const { registerTool } = api;
 
     // ── workflowskill_validate ────────────────────────────────────────────
@@ -125,7 +190,7 @@ export default {
         required: ['content'],
       },
       execute: async (_id, params) => {
-        return toContent(await validateHandler(params as { content: string }, adapters.toolAdapter));
+        return toContent(validateHandler(params as { content: string }, toolAdapter));
       },
     });
 
@@ -159,7 +224,7 @@ export default {
           await runHandler(
             params as { workflow_name?: string; content?: string; inputs?: Record<string, unknown> },
             workspace,
-            adapters,
+            toolAdapter,
           ),
         );
       },
@@ -203,14 +268,14 @@ export default {
       },
     });
 
-    // ── workflowskill_llm ─────────────────────────────────────────────────────
+    // ── workflowskill_llm ─────────────────────────────────────────────────
     registerTool({
       name: 'workflowskill_llm',
       description:
-        'Call Anthropic directly and return the text response. ' +
-        'Uses the API key from OpenClaw\'s credential store (~/.openclaw/agents/main/agent/auth-profiles.json). ' +
+        'Call the Anthropic LLM and return { text }. ' +
+        'Uses the API key from OpenClaw\'s credential store. ' +
         'Use in workflow tool steps when you need LLM reasoning inline. ' +
-        'model is optional (haiku / sonnet / opus or full model ID); omit for the default.',
+        'model is optional (haiku / sonnet / opus or full model ID); omit for haiku.',
       parameters: {
         type: 'object',
         properties: {
@@ -220,16 +285,18 @@ export default {
           },
           model: {
             type: 'string',
-            description: 'Model alias or ID. Optional — omit to use the Anthropic default.',
+            description: 'Model alias (haiku/sonnet/opus) or full model ID. Optional.',
           },
         },
         required: ['prompt'],
       },
       execute: async (_id, params) => {
-        const { prompt, model } = params as { prompt: string; model?: string };
-        const result = await adapters.llmAdapter.call(model, prompt);
-        return toContent({ text: result.text });
+        const { prompt, model = DEFAULT_MODEL } = params as { prompt: string; model?: string };
+        const apiKey = readAnthropicApiKey();
+        const text = await callAnthropic(apiKey, model, prompt);
+        return toContent({ text });
       },
     });
+
   },
 };

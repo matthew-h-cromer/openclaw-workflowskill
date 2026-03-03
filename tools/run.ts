@@ -5,8 +5,7 @@
 // Returns a compact summary to avoid blowing up the calling agent's context.
 
 import { runWorkflowSkill } from 'workflowskill';
-import type { RunLog, RunSummary } from 'workflowskill';
-import type { AdapterSet } from '../lib/adapters.js';
+import type { RunLog, RunSummary, ToolAdapter } from 'workflowskill';
 import { resolveSkillContent, saveRunLog } from '../lib/storage.js';
 
 export interface RunParams {
@@ -64,7 +63,7 @@ function summarizeRunLog(log: RunLog): RunSummarySuccess | RunSummaryFailed {
 export async function runHandler(
   params: RunParams,
   workspace: string,
-  adapters: AdapterSet,
+  toolAdapter: ToolAdapter,
 ): Promise<RunSummarySuccess | RunSummaryFailed> {
   const { workflow_name, content: inlineContent, inputs = {} } = params;
 
@@ -73,13 +72,10 @@ export async function runHandler(
     content = resolveSkillContent(workspace, workflow_name);
   }
 
-  const { toolAdapter, llmAdapter } = adapters;
-
   const log: RunLog = await runWorkflowSkill({
     content,
     inputs,
     toolAdapter,
-    llmAdapter,
     workflowName: workflow_name ?? 'inline',
   });
 

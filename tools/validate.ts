@@ -15,6 +15,6 @@ export interface ValidateResult {
   stepTypes?: string[];
 }
 
-export async function validateHandler(params: ValidateParams, toolAdapter: ToolAdapter): Promise<ValidateResult> {
+export function validateHandler(params: ValidateParams, toolAdapter: ToolAdapter): ValidateResult {
   return validateWorkflowSkill({ content: params.content, toolAdapter });
 }
