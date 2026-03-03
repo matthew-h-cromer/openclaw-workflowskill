@@ -10,12 +10,11 @@ export interface GatewayConfig {
   timeoutMs?: number;
 }
 
-// Tools this plugin registers — must not be forwarded to the gateway to prevent infinite recursion.
+// Only workflowskill_run is truly recursive — a workflow step calling it
+// would launch another workflow with the same adapter, risking infinite loops.
+// The other plugin tools (validate, runs, llm) are leaf operations and safe.
 const SELF_REFERENCING_TOOLS = new Set([
-  'workflowskill_validate',
   'workflowskill_run',
-  'workflowskill_runs',
-  'workflowskill_llm',
 ]);
 
 /** ToolAdapter that delegates to the Gateway HTTP API via POST /tools/invoke. */
