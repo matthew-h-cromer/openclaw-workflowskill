@@ -6,7 +6,6 @@ OpenClaw plugin that provides WorkflowSkill tools: author, validate, run, and in
 
 ```bash
 npm run typecheck   # Type-check all TypeScript (no build step)
-npm run reset       # Clear OpenClaw state and restart gateway for dev
 ```
 
 There are no tests and no build/bundle step.
@@ -17,7 +16,6 @@ There are no tests and no build/bundle step.
 - **`tools/`** — One file per tool: `validate.ts`, `run.ts`, `runs.ts`
 - **`lib/`** — Shared infrastructure: `adapters.ts` (HTTP gateway adapter), `storage.ts` (run history), `openclaw-context.md`
 - **`openclaw.plugin.json`** — Plugin manifest (id: `openclaw-workflowskill`)
-- **`scripts/reset.sh`** — Dev reset script
 
 ## Code Conventions
 
