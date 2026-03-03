@@ -24,19 +24,23 @@ Author, validate, run, and review WorkflowSkill workflows — without leaving th
 
 Requires [OpenClaw](https://openclaw.ai).
 
-### 1. Install the plugin
+### 1. Set your profile to Coding
+
+In OpenClaw settings, change your profile from `messaging` (the default) to `coding`. The `coding` profile grants the agent filesystem access, which is required to read and write workflow files. For more granular access configuration, refer to the [OpenClaw documentation](https://docs.openclaw.ai/).
+
+### 2. Install the plugin
 
 ```bash
 openclaw plugins install openclaw-workflowskill
 ```
 
-### 2. Restart the gateway
+### 3. Restart the gateway
 
 ```bash
 openclaw gateway restart
 ```
 
-### 3. Verify
+### 4. Verify
 
 ```bash
 openclaw plugins list
@@ -48,7 +52,7 @@ openclaw skills list
 
 > **Note:** `workflowskill_llm` uses your Anthropic credentials from the main agent — no separate API key configuration needed.
 
-### 4. Create a workflow
+### 5. Create a workflow
 
 Just tell the agent what you want to automate:
 
@@ -60,7 +64,7 @@ Just tell the agent what you want to automate:
 >
 > Run complete: 4 AI stories found, summary drafted. Ready to schedule — want me to set up a daily cron at 8 AM?
 
-### 5. Schedule it
+### 6. Schedule it
 
 Ask the agent to set up a cron job, or add one manually at `~/.openclaw/cron/jobs.json`:
 
