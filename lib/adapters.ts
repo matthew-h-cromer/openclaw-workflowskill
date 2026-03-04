@@ -6,15 +6,22 @@ import type { ToolAdapter, ToolDescriptor, ToolResult } from 'workflowskill';
 
 /** Unwrap MCP text-content envelope so workflows see actual tool output. */
 function unwrapMcpContent(body: unknown): unknown {
-  if (body !== null && typeof body === 'object' && 'content' in body) {
-    const { content } = body as { content: unknown };
+  // Peel outer { ok, result } gateway envelope if present.
+  let inner: unknown = body;
+  if (inner !== null && typeof inner === 'object' && 'ok' in inner && 'result' in inner) {
+    inner = (inner as { ok: unknown; result: unknown }).result;
+  }
+
+  // Peel MCP { content: [{ type: 'text', text: '...' }] } envelope.
+  if (inner !== null && typeof inner === 'object' && 'content' in inner) {
+    const { content } = inner as { content: unknown };
     if (Array.isArray(content) && content.length === 1
       && content[0]?.type === 'text' && typeof content[0]?.text === 'string') {
       try { return JSON.parse(content[0].text); }
       catch { return content[0].text; }
     }
   }
-  return body;
+  return inner;
 }
 
 export interface GatewayConfig {
