@@ -11,6 +11,7 @@ import { runHandler } from './tools/run.js';
 import { runsHandler } from './tools/runs.js';
 import { llmHandler } from './tools/llm.js';
 import { fetchRawHandler } from './tools/fetch_raw.js';
+import { scrapeHandler } from './tools/scrape.js';
 import { createToolAdapter, type GatewayConfig } from './lib/adapters.js';
 
 // ─── OpenClaw plugin API types ─────────────────────────────────────────────
@@ -229,6 +230,42 @@ export default {
       },
       execute: async (_id, params) => {
         return toContent(await llmHandler(params as { prompt: string; model?: string }));
+      },
+    });
+
+    // ── workflowskill_scrape ──────────────────────────────────────────────
+    registerTool({
+      name: 'workflowskill_scrape',
+      description:
+        'Fetch a web page and extract structured data using CSS selectors. ' +
+        'Returns { status, results } where results maps each selector name to an array of matching text values. ' +
+        'Use when you need to extract specific content from HTML pages — ' +
+        'supply named selectors like { "title": "h1", "prices": "span.price" }. ' +
+        'Errors return { status: 0, error: "<message>" }.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The page URL to fetch (http or https).',
+          },
+          selectors: {
+            type: 'object',
+            description: 'Map of named CSS selectors, e.g. { "title": "h1", "prices": "span.price" }.',
+          },
+          headers: {
+            type: 'object',
+            description: 'Custom request headers as key-value pairs. Optional.',
+          },
+        },
+        required: ['url', 'selectors'],
+      },
+      execute: async (_id, params) => {
+        return toContent(
+          await scrapeHandler(
+            params as { url: string; selectors: Record<string, string>; headers?: Record<string, string> },
+          ),
+        );
       },
     });
 
