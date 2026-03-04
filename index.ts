@@ -10,6 +10,7 @@ import { validateHandler } from './tools/validate.js';
 import { runHandler } from './tools/run.js';
 import { runsHandler } from './tools/runs.js';
 import { llmHandler } from './tools/llm.js';
+import { fetchRawHandler } from './tools/fetch_raw.js';
 import { createToolAdapter, type GatewayConfig } from './lib/adapters.js';
 
 // ─── OpenClaw plugin API types ─────────────────────────────────────────────
@@ -228,6 +229,46 @@ export default {
       },
       execute: async (_id, params) => {
         return toContent(await llmHandler(params as { prompt: string; model?: string }));
+      },
+    });
+
+    // ── workflowskill_fetch_raw ───────────────────────────────────────────
+    registerTool({
+      name: 'workflowskill_fetch_raw',
+      description:
+        'Make an HTTP request and return { status, headers, body } with JSON auto-parsed. ' +
+        'Use this instead of web_fetch when you need structured JSON from an API — ' +
+        'web_fetch converts responses to markdown, destroying JSON structure. ' +
+        'body is a parsed object for application/json responses, or a raw string otherwise. ' +
+        'Network errors return { status: 0, body: "<error message>" } so workflows can branch on failure.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The URL to fetch (http or https).',
+          },
+          method: {
+            type: 'string',
+            description: 'HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS). Defaults to GET.',
+          },
+          headers: {
+            type: 'object',
+            description: 'Request headers as key-value pairs. Optional.',
+          },
+          body: {
+            type: 'string',
+            description: 'Request body as a string (e.g. JSON.stringify output). Optional.',
+          },
+        },
+        required: ['url'],
+      },
+      execute: async (_id, params) => {
+        return toContent(
+          await fetchRawHandler(
+            params as { url: string; method?: string; headers?: Record<string, string>; body?: string },
+          ),
+        );
       },
     });
 

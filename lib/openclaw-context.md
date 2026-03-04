@@ -34,3 +34,44 @@ Always set `"model": "haiku"` on cron payloads — cron runs are lightweight orc
 > ```
 >
 > Without this, cron sessions cannot invoke `workflowskill_run` and will fail silently.
+
+### Fetching Raw API Data
+
+Use `workflowskill_fetch_raw` when a workflow step needs structured data from an HTTP API. Unlike `web_fetch`, which converts responses to markdown (destroying JSON structure), `workflowskill_fetch_raw` returns a parsed object for `application/json` responses.
+
+**Return shape:**
+```json
+{ "status": 200, "headers": { "content-type": "application/json" }, "body": { ... } }
+```
+
+Access response data via `$result.body.<field>`. Network errors return `status: 0` and a string `body` describing the error, so workflows can branch on failure.
+
+**GET request (JSON API):**
+```yaml
+steps:
+  - id: fetch_jobs
+    type: tool
+    tool: workflowskill_fetch_raw
+    params:
+      url: "https://boards-api.greenhouse.io/v1/boards/intrinsic/jobs"
+  - id: count_jobs
+    type: tool
+    tool: workflowskill_llm
+    params:
+      prompt: "There are {{ steps.fetch_jobs.result.body.jobs.length }} jobs."
+```
+
+**POST request with JSON body:**
+```yaml
+steps:
+  - id: create_item
+    type: tool
+    tool: workflowskill_fetch_raw
+    params:
+      url: "https://api.example.com/items"
+      method: POST
+      headers:
+        Content-Type: application/json
+        Authorization: "Bearer {{ inputs.token }}"
+      body: '{"name": "{{ inputs.name }}"}'
+```

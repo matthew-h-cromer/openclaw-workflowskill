@@ -59,7 +59,7 @@ The gateway loads plugins and config at startup. A restart is required to pick u
 
 ```bash
 openclaw plugins list
-# → workflowskill: 4 tools registered
+# → workflowskill: 6 tools registered
 
 openclaw skills list
 # → workflowskill-author (user-invocable)
@@ -105,14 +105,16 @@ Your agent will use `"model": "haiku"` for cron jobs, ensuring execution is chea
 
 ## Tools
 
-Registers four tools with the OpenClaw agent:
+Registers six tools with the OpenClaw agent:
 
-| Tool                     | Description                                                   |
-| ------------------------ | ------------------------------------------------------------- |
-| `workflowskill_validate` | Parse and validate a SKILL.md or raw YAML workflow            |
-| `workflowskill_run`      | Execute a workflow and return a compact run summary           |
-| `workflowskill_runs`     | List and inspect past run logs                                |
-| `workflowskill_llm`      | Call Anthropic directly for inline LLM reasoning in workflows |
+| Tool                       | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `workflowskill_validate`   | Parse and validate a SKILL.md or raw YAML workflow                 |
+| `workflowskill_run`        | Execute a workflow and return a compact run summary                |
+| `workflowskill_runs`       | List and inspect past run logs                                     |
+| `workflowskill_llm`        | Call Anthropic directly for inline LLM reasoning in workflows      |
+| `workflowskill_fetch_raw`  | HTTP fetch returning `{ status, headers, body }` with JSON parsed  |
+| `workflowskill_scrape`     | Fetch a web page and extract text via CSS selectors                |
 
 Also ships the `/workflowskill-author` skill — just say "I want to automate X" and the agent handles the rest: researching, writing, validating, and test-running the workflow in chat.
 
@@ -135,9 +137,9 @@ Review past runs via `workflowskill_runs`.
 
 Workflow `tool` steps are forwarded to the **OpenClaw gateway** via `POST /tools/invoke`. Any tool registered with the gateway is available to a workflow — the plugin sends the tool name and args as JSON and returns the result. Gateway auth (`config.gateway.auth.token`) must be configured or the plugin will refuse to start.
 
-The `workflowskill_llm` tool is built-in: it calls Anthropic directly using the API key from OpenClaw's credential store, and is always available.
+The `workflowskill_llm`, `workflowskill_fetch_raw`, and `workflowskill_scrape` tools are built-in: they call external services directly without going through the gateway adapter.
 
-Only `workflowskill_run` is blocked from gateway forwarding — it is self-referencing and would create infinite recursion. The other three plugin tools (`workflowskill_validate`, `workflowskill_runs`, `workflowskill_llm`) are leaf operations and are forwarded normally.
+Only `workflowskill_run` is blocked from gateway forwarding — it is self-referencing and would create infinite recursion. The other plugin tools (`workflowskill_validate`, `workflowskill_runs`, `workflowskill_llm`, `workflowskill_fetch_raw`, `workflowskill_scrape`) are leaf operations and are forwarded normally.
 
 ## Tool Reference
 
@@ -185,6 +187,31 @@ Call Anthropic directly and return the text response. Uses the API key from Open
 | `model`  | string | no       | Model alias (`haiku`, `sonnet`, `opus`) or full model ID — omit to use the default |
 
 Returns the LLM response as a plain text string.
+
+### `workflowskill_fetch_raw`
+
+Make an HTTP request and return the raw response with JSON auto-parsed. Use this instead of `web_fetch` when you need structured data from a JSON API — `web_fetch` converts responses to markdown, destroying JSON structure.
+
+| Param     | Type   | Required | Description                                                    |
+| --------- | ------ | -------- | -------------------------------------------------------------- |
+| `url`     | string | yes      | The URL to fetch (http or https)                               |
+| `method`  | string | no       | HTTP method — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS     |
+| `headers` | object | no       | Request headers as key-value pairs                             |
+| `body`    | string | no       | Request body string (e.g. `JSON.stringify(...)` for POST/PUT)  |
+
+Returns `{ status, headers, body }`. `body` is a parsed object for `application/json` responses, or a raw string otherwise. Network errors return `{ status: 0, headers: {}, body: "<error message>" }` so workflows can branch on failure.
+
+### `workflowskill_scrape`
+
+Fetch a web page and extract structured data using CSS selectors.
+
+| Param       | Type   | Required | Description                                                          |
+| ----------- | ------ | -------- | -------------------------------------------------------------------- |
+| `url`       | string | yes      | The page URL to fetch (http or https)                                |
+| `selectors` | object | yes      | Named CSS selectors, e.g. `{ "title": "h1", "prices": "span.price" }` |
+| `headers`   | object | no       | Custom request headers as key-value pairs                            |
+
+Returns `{ status, results }` where `results` maps each selector name to an array of matching text values. Errors return `{ status: 0, error: "<message>" }`.
 
 ## Development
 
